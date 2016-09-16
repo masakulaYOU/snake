@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<title>Examples</title>
+<meta name="description" content="">
+<meta name="keywords" content="">
+<link href="" rel="stylesheet">
+<style type="text/css">
+	#panel { width: 100%; }
+	#panel table{ border-collapse: collapse; margin: 0 auto;}
+	#panel table td{ height: 15px; width: 15px; background: black;}
+	#panel .snake{ background: green; }
+	#panel .food{ background: blue; }
+	#panel .head{ background: darkgreen; }
+</style>
+</head>
+<script type="text/javascript">
+COLS = 21;
+</script>
+<body>
+	<div id="panel"></div>
+</body>
+<script type="text/javascript">
+var direction = new function(){
+	this.UP = 38;
+	this.RIGHT = 39;
+	this.DOWN = 40;
+	this.LEFT = 37;
+}
+
+var Setting = new function(){
+	this.width = 21;
+	this.height = 21;
+	this.speed = 250;
+	this.workThread = null;
+}
+
+function Control(){
+	this.snake = new Snake();
+	this.food = new Food();
+
+	this.Init = function(panel){
+		var oPanel = document.getElementById(panel);
+		var oTable = document.createElement('table');
+		oTable.cellspacing = "0";
+		for(var j = 0; j < Setting.width; j++){
+			var oTr = document.createElement('tr');
+			for(var i = 0; i < Setting.height; i++){
+				var oTd = document.createElement('td');
+				oTd.id = "box_" + i + "_" + j;
+				oTr.appendChild(oTd);
+			}
+			oTable.appendChild(oTr);
+		}
+		oPanel.appendChild(oTable);
+	}
+
+	this.Start = function () {
+		var me = this;
+		this.MoveSnake = function (ev) {
+			var evt = window.event || ev;
+			me.snake.Setdir(evt.keyCode);
+		};
+		try {
+			document.attachEvent("onkeydown", this.MoveSnake);
+		} catch (e) {
+			document.addEventListener("keydown", this.MoveSnake, false);
+		}
+		this.food.Create();
+		Setting.workThread = setInterval(function () {
+			me.snake.Eat(me.food);
+			if(me.snake.Eating){
+				for(var i = 0; i < me.snake.pos.length; i++){
+					var obj = document.getElementById('box_' + me.snake.pos[i].x + '_' + me.snake.pos[i].y);
+					if (obj) {
+						obj.className = 'snake';
+					}
+				}
+				me.snake.Eating = false;
+			}
+			else me.snake.Move();
+		}, Setting.speed);
+	};
+}
+
+function Snake(){
+	this.pos = new Array(new Position());
+	this.isDone = false;
+	this.isDead = false;
+	this.dir = direction.RIGHT;
+	this.Eating = false;
+
+	this.Move = function(){
+		document.getElementById("box_" + this.pos[0].x + "_" + this.pos[0].y).className = "";
+		for(var i = 0; i < this.pos.length - 1; i++){
+			this.pos[i].x = this.pos[i + 1].x;
+			this.pos[i].y = this.pos[i + 1].y;
+		}
+		var head = this.pos[this.pos.length - 1];
+		switch(this.dir){
+			case (direction.UP): head.y --; break;
+			case (direction.DOWN): head.y ++; break;
+			case (direction.RIGHT): head.x ++; break;
+			case (direction.LEFT): head.x --; break;
+		}
+		this.pos[this.pos.length - 1] = head;
+		for(var i = 0; i < this.pos.length; i++){
+			for(var j = i + 1; j<this.pos.length; j++){
+				if(this.pos[j].x == this.pos[i].x && this.pos[j].y == this.pos[i].y){
+					this.isDead = true;
+					break;
+				}
+			}
+			if (this.isDead) { this.Over(); break;}
+			var obj = document.getElementById('box_' + this.pos[i].x + '_' + this.pos[i].y);
+			if(obj) {
+				obj.className = 'snake';
+			}
+			else {this.Over(); break;}
+		}
+		this.isDone = true;
+	}
+
+	this.Over = function(){
+		clearInterval(Setting.workThread);
+		alert("You are Dead");
+	}
+
+	this.Setdir = function(key){
+		switch(key){
+			case (direction.UP): if(this.isDone && this.dir != direction.DOWN && this.dir != direction.DOWN) {this.dir = direction.UP; this.isDone = false;} break;
+			case (direction.DOWN): if(this.isDone && this.dir != direction.UP && this.dir != direction.UP) {this.dir = direction.DOWN; this.isDone = false;} break;
+			case (direction.LEFT): if(this.isDone && this.dir != direction.RIGHT && this.dir != direction.LEFT) {this.dir = direction.LEFT; this.isDone = false;} break;
+			case (direction.RIGHT): if(this.isDone && this.dir != direction.LEFT && this.dir != direction.RIGHT) {this.dir = direction.RIGHT; this.isDone = false;} break;
+		}
+	}
+
+	this.Eat = function(food){
+		var head = this.pos[this.pos.length - 1];
+		var isEat = false;
+		switch (this.dir) {
+			case direction.UP:
+				if (head.x == food.pos.x && head.y == food.pos.y + 1) isEat = true;
+				break;
+			case direction.RIGHT:
+				if (head.y == food.pos.y && head.x == food.pos.x - 1) isEat = true;
+				break;
+			case direction.DOWN:
+				if (head.x == food.pos.x && head.y == food.pos.y - 1) isEat = true;
+				break;
+			case direction.LEFT:
+				if (head.y == food.pos.y && head.x == food.pos.x + 1) isEat = true;
+				break;
+		}
+		if (isEat) {
+			this.pos[this.pos.length] = new Position(food.pos.x, food.pos.y);
+			food.Create(this.pos);
+			this.Eating = true;
+		}
+	};
+}
+
+function Food(){
+	this.pos = new Position();
+	/*创建食物 - 随机位置创建立*/
+	this.Create = function (pos) {
+		document.getElementById("box_" + this.pos.x + "_" + this.pos.y).className = "";
+		var x = 0, y = 0, isCover = false;
+		/*排除蛇的位置*/
+		do {
+			x = parseInt(Math.random() * (Setting.width - 1));
+			y = parseInt(Math.random() * (Setting.height - 1));
+			isCover = false;
+			if (pos instanceof Array) {
+				for (var i = 0; i < pos.length; i++) {
+					if (x == pos[i].x && y == pos[i].y) {
+						isCover = true;
+						break;
+					}
+				}
+			}
+		} while (isCover);
+		this.pos = new Position(x, y);
+		document.getElementById("box_" + x + "_" + y).className = "food";
+	};
+}
+
+function Position(x,y){
+	this.x = 0;
+	this.y = 0;
+	if(arguments.length >=1) this.x = x;
+	if(arguments.length >=2) this.y = y;
+}
+
+
+window.onload = function(){
+	var control = new Control();
+	control.Init('panel');
+	control.Start();
+
+}
+</script>
+</html>
